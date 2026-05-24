@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>The Graph Atlas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Spectral:ital,wght@0,400;0,500;1,400&family=Spline+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --paper:#f2eee2;
+    --paper-2:#fbf9f1;
+    --ink:#272320;
+    --ink-soft:#7d7264;
+    --line:#ddd4c1;
+    --line-soft:#e8e1d0;
+    --accent:#176b63;
+    --accent-deep:#0e524b;
+    --accent-warm:#bf7a32;
+    --mi-low:#c4d6cf;
+    --mi-high:#0e524b;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"Spectral",Georgia,serif;
+    -webkit-font-smoothing:antialiased;
+    line-height:1.5;
+    position:relative;
+  }
+  /* paper grain */
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/></svg>");
+    mix-blend-mode:multiply;
+  }
+  .mono{font-family:"Spline Sans Mono",ui-monospace,monospace;}
+
+  /* ---------- masthead ---------- */
+  header{
+    position:relative;z-index:1;
+    border-bottom:1.5px solid var(--ink);
+    padding:34px clamp(20px,5vw,72px) 26px;
+    background:linear-gradient(180deg,var(--paper-2),var(--paper));
+  }
+  .kicker{
+    font-family:"Spline Sans Mono",monospace;
+    font-size:11px;letter-spacing:.34em;text-transform:uppercase;
+    color:var(--accent-deep);margin-bottom:14px;
+    display:flex;align-items:center;gap:12px;
+  }
+  .kicker::after{content:"";flex:1;height:1px;background:var(--line);}
+  h1{
+    font-family:"Fraunces",serif;font-weight:500;
+    font-size:clamp(40px,7vw,82px);line-height:.96;letter-spacing:-.02em;
+  }
+  h1 em{font-style:italic;color:var(--accent);font-weight:400;}
+  .tagline{
+    margin-top:16px;max-width:62ch;font-size:16px;color:#3c372f;
+  }
+  .tagline code{
+    font-family:"Spline Sans Mono",monospace;font-size:.84em;
+    background:var(--paper-2);border:1px solid var(--line);
+    padding:1px 6px;border-radius:4px;
+  }
+
+  /* ---------- control bar ---------- */
+  .controls{
+    position:sticky;top:0;z-index:20;
+    background:rgba(242,238,226,.94);
+    backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--line);
+    padding:14px clamp(20px,5vw,72px);
+    display:flex;flex-wrap:wrap;gap:26px 40px;align-items:flex-end;
+  }
+  .ctrl-group{display:flex;flex-direction:column;gap:8px;}
+  .ctrl-label{
+    font-family:"Spline Sans Mono",monospace;
+    font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft);
+  }
+  .pills{display:flex;flex-wrap:wrap;gap:6px;}
+  .pill{
+    font-family:"Spline Sans Mono",monospace;font-size:13px;
+    border:1.5px solid var(--ink);background:transparent;color:var(--ink);
+    padding:7px 15px;border-radius:999px;cursor:pointer;
+    transition:background .15s,color .15s,transform .08s;
+  }
+  .pill:hover{background:var(--line-soft);}
+  .pill:active{transform:scale(.96);}
+  .pill[aria-pressed="true"]{background:var(--ink);color:var(--paper-2);}
+  .pill .n-count{opacity:.55;margin-left:6px;}
+
+  .seg{display:flex;border:1.5px solid var(--ink);border-radius:8px;overflow:hidden;}
+  .seg button{
+    font-family:"Spline Sans Mono",monospace;font-size:12.5px;
+    background:transparent;color:var(--ink);border:0;cursor:pointer;
+    padding:8px 16px;border-right:1.5px solid var(--ink);
+    transition:background .15s,color .15s;
+  }
+  .seg button:last-child{border-right:0;}
+  .seg button:hover{background:var(--line-soft);}
+  .seg button[aria-pressed="true"]{background:var(--accent);color:#fff;}
+
+  /* ---------- gallery ---------- */
+  main{position:relative;z-index:1;padding:30px clamp(20px,5vw,72px) 70px;}
+  .gallery-head{
+    display:flex;justify-content:space-between;align-items:baseline;
+    gap:20px;flex-wrap:wrap;margin-bottom:22px;
+  }
+  .gallery-head h2{
+    font-family:"Fraunces",serif;font-weight:500;font-size:26px;letter-spacing:-.01em;
+  }
+  .gallery-head .count{
+    font-family:"Spline Sans Mono",monospace;font-size:12px;color:var(--ink-soft);
+  }
+  .grid{
+    display:grid;gap:20px;
+    grid-template-columns:repeat(auto-fill,minmax(218px,1fr));
+  }
+  .card{
+    position:relative;
+    background:var(--paper-2);
+    border:1.5px solid var(--ink);
+    border-radius:10px;
+    padding:14px 14px 12px;
+    cursor:pointer;text-align:left;
+    font-family:inherit;color:inherit;
+    box-shadow:4px 5px 0 rgba(39,35,32,.14);
+    transition:transform .14s ease,box-shadow .14s ease;
+    opacity:0;animation:rise .5s ease forwards;
+  }
+  @keyframes rise{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:translateY(0);}}
+  .card:hover{transform:translate(-2px,-3px);box-shadow:7px 9px 0 rgba(39,35,32,.18);}
+  .card:active{transform:translate(0,0);box-shadow:3px 4px 0 rgba(39,35,32,.14);}
+  .card-figure{
+    aspect-ratio:1;width:100%;
+    border:1px solid var(--line);border-radius:6px;
+    background:var(--paper);
+    display:flex;align-items:center;justify-content:center;
+    overflow:hidden;
+  }
+  .card-figure svg{width:100%;height:100%;display:block;}
+  .card-meta{display:flex;justify-content:space-between;align-items:baseline;
+    margin-top:11px;gap:8px;}
+  .card-id{font-family:"Fraunces",serif;font-size:19px;font-weight:600;letter-spacing:-.01em;}
+  .badge{
+    position:absolute;top:9px;right:9px;
+    font-family:"Spline Sans Mono",monospace;font-size:9px;letter-spacing:.06em;
+    text-transform:uppercase;padding:3px 7px;border-radius:5px;
+    background:var(--accent-warm);color:#fff;
+  }
+  .spinner{
+    width:22px;height:22px;border-radius:50%;
+    border:2.5px solid var(--line);border-top-color:var(--accent);
+    animation:spin .8s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .notice{
+    grid-column:1/-1;border:1.5px dashed var(--line);border-radius:10px;
+    padding:34px;text-align:center;color:var(--ink-soft);
+    font-family:"Spline Sans Mono",monospace;font-size:13px;line-height:1.7;
+  }
+  .notice strong{color:var(--ink);}
+
+  /* ---------- pagination ---------- */
+  .page-bar{
+    display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;
+    gap:12px 20px;margin-bottom:18px;padding:11px 16px;
+    background:var(--paper-2);border:1.5px solid var(--line);border-radius:8px;
+  }
+  .page-nav{display:flex;align-items:center;gap:12px;}
+  .page-indicator{
+    font-family:"Spline Sans Mono",monospace;font-size:13px;
+    color:var(--ink);min-width:110px;text-align:center;
+  }
+  .page-opts{display:flex;align-items:center;gap:10px 16px;flex-wrap:wrap;}
+  .page-opts .ctrl-label{display:flex;align-items:center;gap:7px;margin:0;}
+  .page-btn{
+    font-family:"Spline Sans Mono",monospace;font-size:12px;
+    border:1.5px solid var(--ink);background:transparent;color:var(--ink);
+    padding:6px 13px;border-radius:6px;cursor:pointer;
+    transition:background .12s,color .12s;
+  }
+  .page-btn:hover:not(:disabled){background:var(--ink);color:var(--paper-2);}
+  .page-btn:disabled{opacity:.35;cursor:default;}
+  .jump-input,.page-select{
+    font-family:"Spline Sans Mono",monospace;font-size:12px;
+    border:1.5px solid var(--line);border-radius:6px;
+    padding:5px 9px;background:var(--paper-2);color:var(--ink);cursor:pointer;
+  }
+  .jump-input{width:80px;cursor:text;}
+  .jump-input:focus,.page-select:focus{outline:none;border-color:var(--accent);}
+
+  /* ---------- modal ---------- */
+  .modal-back{
+    position:fixed;inset:0;z-index:60;
+    background:rgba(31,28,24,.55);backdrop-filter:blur(3px);
+    display:none;align-items:center;justify-content:center;padding:24px;
+  }
+  .modal-back.open{display:flex;animation:fade .2s ease;}
+  @keyframes fade{from{opacity:0;}to{opacity:1;}}
+  .modal{
+    background:var(--paper-2);border:1.5px solid var(--ink);border-radius:12px;
+    box-shadow:12px 16px 0 rgba(31,28,24,.35);
+    width:min(960px,100%);max-height:90vh;overflow:auto;
+    display:grid;grid-template-columns:1.15fr .85fr;
+  }
+  .modal-fig{
+    border-right:1.5px solid var(--ink);padding:26px;
+    background:
+      linear-gradient(var(--line-soft) 1px,transparent 1px) 0 0/100% 7.69%,
+      var(--paper);
+    background-blend-mode:multiply;
+    display:flex;flex-direction:column;gap:16px;
+  }
+  .modal-fig .stage{flex:1;display:flex;align-items:center;justify-content:center;min-height:320px;}
+  .modal-fig svg{width:100%;height:auto;max-height:440px;}
+  .modal-info{padding:26px 26px 30px;display:flex;flex-direction:column;gap:18px;}
+  .modal-close{
+    position:absolute;top:16px;right:18px;z-index:2;
+    width:34px;height:34px;border-radius:50%;
+    border:1.5px solid var(--ink);background:var(--paper-2);
+    font-size:18px;cursor:pointer;line-height:1;color:var(--ink);
+  }
+  .modal-close:hover{background:var(--ink);color:var(--paper-2);}
+  .modal-info h3{font-family:"Fraunces",serif;font-weight:600;font-size:30px;letter-spacing:-.01em;}
+  .modal-info .sub{font-family:"Spline Sans Mono",monospace;font-size:11px;
+    letter-spacing:.16em;text-transform:uppercase;color:var(--accent-deep);}
+  .specs{display:grid;grid-template-columns:1fr 1fr;gap:1px;
+    background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden;}
+  .specs div{background:var(--paper-2);padding:10px 12px;}
+  .specs dt{font-family:"Spline Sans Mono",monospace;font-size:9.5px;
+    letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);}
+  .specs dd{font-family:"Spline Sans Mono",monospace;font-size:15px;margin-top:3px;}
+  .g6{font-family:"Spline Sans Mono",monospace;font-size:13px;
+    background:var(--paper);border:1px solid var(--line);border-radius:6px;
+    padding:10px 12px;word-break:break-all;cursor:pointer;
+    position:relative;transition:border-color .15s;}
+  .g6:hover{border-color:var(--accent);}
+  .g6-copy{position:absolute;right:9px;top:50%;transform:translateY(-50%);
+    font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--ink-soft);opacity:0;transition:opacity .15s;}
+  .g6:hover .g6-copy{opacity:1;}
+  .g6.copied{border-color:var(--accent);background:#edf5f3;}
+  .g6.copied .g6-copy{opacity:1;color:var(--accent);}
+  .opt-row{display:flex;align-items:center;gap:9px;font-family:"Spline Sans Mono",monospace;
+    font-size:12px;color:var(--ink-soft);}
+  .opt-row input{width:15px;height:15px;accent-color:var(--accent);}
+  .legend{display:none;flex-direction:column;gap:6px;}
+  .legend.show{display:flex;}
+  .legend-bar{height:13px;border-radius:4px;border:1px solid var(--line);
+    background:linear-gradient(90deg,var(--mi-low),var(--mi-high));}
+  .legend-scale{display:flex;justify-content:space-between;
+    font-family:"Spline Sans Mono",monospace;font-size:10px;color:var(--ink-soft);}
+  .legend-scale{display:flex;justify-content:space-between;
+    font-family:"Spline Sans Mono",monospace;font-size:10px;color:var(--ink-soft);}
+  .legend-title{font-family:"Spline Sans Mono",monospace;font-size:9.5px;
+    letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);}
+  .mi-missing{font-family:"Spline Sans Mono",monospace;font-size:11.5px;
+    color:var(--accent-warm);border-left:2px solid var(--accent-warm);padding-left:9px;}
+
+  .tooltip{
+    position:fixed;z-index:80;pointer-events:none;display:none;
+    background:var(--ink);color:var(--paper-2);
+    font-family:"Spline Sans Mono",monospace;font-size:11px;
+    padding:5px 9px;border-radius:5px;white-space:nowrap;
+    transform:translate(-50%,-130%);
+  }
+
+  footer{
+    position:relative;z-index:1;
+    border-top:1.5px solid var(--ink);
+    padding:24px clamp(20px,5vw,72px);
+    font-family:"Spline Sans Mono",monospace;font-size:11px;color:var(--ink-soft);
+    display:flex;flex-wrap:wrap;gap:8px 26px;justify-content:space-between;
+  }
+  footer a{color:var(--accent-deep);}
+
+  @media(max-width:680px){
+    .modal{grid-template-columns:1fr;}
+    .modal-fig{border-right:0;border-bottom:1.5px solid var(--ink);}
+    .controls{gap:16px 28px;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="kicker">A browsable zoo of spin networks</div>
+  <h1>Spin Network <em>Zoo</em></h1>
+  <p class="tagline">
+    Every 4-regular simple graph, up to 15 nodes, drawn three ways &mdash;
+    its <strong>original</strong> structure (unweighted), the <strong>complete</strong>
+    K<sub>N</sub> graph weighted by mutual information for all pairs, and the
+    <strong>original edges</strong> weighted by their mutual information.
+  </p>
+</header>
+
+<nav class="controls">
+  <div class="ctrl-group">
+    <span class="ctrl-label">Nodes &mdash; N</span>
+    <div class="pills" id="nPills"></div>
+  </div>
+  <div class="ctrl-group">
+    <span class="ctrl-label">View mode</span>
+    <div class="seg" id="modeSeg">
+      <button data-mode="original" aria-pressed="true">Original</button>
+      <button data-mode="complete" aria-pressed="false">Complete · MI</button>
+      <button data-mode="weighted" aria-pressed="false">Original · MI</button>
+    </div>
+  </div>
+</nav>
+
+<main>
+  <div class="gallery-head">
+    <h2 id="galleryTitle">Loading&hellip;</h2>
+    <span class="count" id="galleryCount"></span>
+  </div>
+  <div class="page-bar" id="pageBar" style="display:none;">
+    <div class="page-nav">
+      <button class="page-btn" id="pagePrev" disabled>&larr; Prev</button>
+      <span class="page-indicator" id="pageIndicator"></span>
+      <button class="page-btn" id="pageNext">Next &rarr;</button>
+    </div>
+    <div class="page-opts">
+      <label class="ctrl-label">
+        per page
+        <select class="page-select" id="pageSizeSelect">
+          <option value="12">12</option>
+          <option value="24" selected>24</option>
+          <option value="48">48</option>
+          <option value="96">96</option>
+        </select>
+      </label>
+      <label class="ctrl-label">
+        jump to id
+        <input class="jump-input mono" id="jumpInput" type="number" min="0" placeholder="id&hellip;" />
+      </label>
+      <button class="page-btn" id="jumpBtn">Go</button>
+    </div>
+  </div>
+  <div class="grid" id="grid"></div>
+</main>
+
+<footer>
+  <span>Spin Network Zoo &mdash; Grzegorz Czelusta 2026</span>
+  <!-- <span>Data: <a href="data/zoo.csv">zoo.csv</a> + <span class="mono">layout_N{N}.json</span> and <span class="mono">mi_N{N}.json</span> per node count.</span> -->
+</footer>
+
+<div class="modal-back" id="modalBack">
+  <div class="modal" id="modal">
+    <button class="modal-close" id="modalClose" aria-label="Close">&times;</button>
+    <div class="modal-fig">
+      <div class="seg" id="modalSeg" style="align-self:flex-start;">
+        <button data-mode="original">Original</button>
+        <button data-mode="complete">Complete · MI</button>
+        <button data-mode="weighted">Original · MI</button>
+      </div>
+      <div class="stage" id="modalStage"></div>
+      <div class="legend" id="legend">
+        <span class="legend-title">Mutual information</span>
+        <div class="legend-bar"></div>
+        <div class="legend-scale"><span id="legMin"></span><span id="legMax"></span></div>
+      </div>
+    </div>
+    <div class="modal-info" id="modalInfo"></div>
+  </div>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+"use strict";
+const DATA_DIR = "data";
+const NS = "http://www.w3.org/2000/svg";
+const V = 1000;            // internal SVG coordinate space
+const COL = {
+  ink:"#2b2722", inkSoft:"#a99e8a",
+  edgeOriginal:"#33302b", edgeComplete:"#b9ad97",
+  node:"#272320", nodeLabel:"#f5f1e6",
+  miLow:[196,214,207], miHigh:[14,82,75]
+};
+const MI_RANGE = 2;    // global normalisation: MI ∈ [0, MI_RANGE]
+
+const state = { rows:[], byN:new Map(), N:null, mode:"original", cache:new Map(), page:0, pageSize:24 };
+
+/* ---------- parsing ---------- */
+function parseCSV(text){
+  const lines = text.trim().split(/\r?\n/);
+  const out = [];
+  for(let i=1;i<lines.length;i++){
+    const ln = lines[i].trim();
+    if(!ln) continue;
+    const p = ln.split(",");
+    out.push({ N:parseInt(p[0],10), id:parseInt(p[1],10), graph6:(p[2]||"").trim() });
+  }
+  return out;
+}
+
+function decodeGraph6(s){
+  const b = [];
+  for(let i=0;i<s.length;i++) b.push(s.charCodeAt(i));
+  let n, idx;
+  if(b[0]===126){
+    if(b[1]===126){ n=0; for(let k=2;k<8;k++) n=n*64+(b[k]-63); idx=8; }
+    else { n=0; for(let k=1;k<4;k++) n=n*64+(b[k]-63); idx=4; }
+  } else { n=b[0]-63; idx=1; }
+  const bits = [];
+  for(let k=idx;k<b.length;k++){
+    const v = b[k]-63;
+    for(let j=5;j>=0;j--) bits.push((v>>j)&1);
+  }
+  const edges = [];
+  let p = 0;
+  for(let j=1;j<n;j++)
+    for(let i=0;i<j;i++){ if(bits[p]===1) edges.push([i,j]); p++; }
+  return { n, edges };
+}
+
+/* ---------- graph helpers ---------- */
+function ekey(a,b){ return a<b ? a+"-"+b : b+"-"+a; }
+function circularLayout(n){
+  const pts = [];
+  for(let i=0;i<n;i++){
+    const a = -Math.PI/2 + 2*Math.PI*i/n;
+    pts.push([Math.cos(a), Math.sin(a)]);
+  }
+  return pts;
+}
+function completeEdges(n){
+  const e = [];
+  for(let i=0;i<n;i++) for(let j=i+1;j<n;j++) e.push([i,j]);
+  return e;
+}
+
+/* ---------- N-level data caches ----------
+   Layout and MI are fetched once per N (not per graph).
+   nMICache stores the Promise so concurrent requests share one fetch.
+   nMIDone tracks settled N values so "no MI" badge only shows after the
+   fetch has actually completed (not while it's still in-flight).          */
+const nLayoutCache = new Map();   // N → Promise<Array|null>
+const nMICache     = new Map();   // N → Promise<Array|null>
+const nMIDone      = new Set();   // N values where MI fetch has settled
+
+function getNLayout(N){
+  if(!nLayoutCache.has(N)){
+    nLayoutCache.set(N,
+      fetch(DATA_DIR+"/layout_N"+N+".json")
+        .then(r => r.ok ? r.json() : null).catch(()=>null)
+    );
+  }
+  return nLayoutCache.get(N);
+}
+
+function getNMI(N){
+  if(!nMICache.has(N)){
+    const p = fetch(DATA_DIR+"/mi_N"+N+".json")
+      .then(r => r.ok ? r.json() : null).catch(()=>null)
+      .then(data=>{ nMIDone.add(N); applyMIToCache(N, data); return data; });
+    nMICache.set(N, p);
+  }
+  return nMICache.get(N);
+}
+
+/* flat array (canonical upper-triangle order) → edge-key Map */
+function buildMIMap(n, values){
+  const map = new Map();
+  let p = 0;
+  for(let j=1;j<n;j++)
+    for(let i=0;i<j;i++) map.set(ekey(i,j), values[p++]);
+  return map;
+}
+
+/* called when MI data for N arrives — patch cached graph objects in-place */
+function applyMIToCache(N, miData){
+  if(!miData) return;
+  const graphs = state.byN.get(N) || [];
+  for(const rec of graphs){
+    const g = state.cache.get(rec.N+"-"+rec.id);
+    if(!g || g.has.mi) continue;
+    const entry = miData[rec.id];
+    if(Array.isArray(entry)){ g.mi = buildMIMap(g.n, entry); g.has.mi = true; }
+  }
+  /* re-render visible cards if still on this N in a weighted mode */
+  if(state.N === N && state.mode !== "original") rerenderCurrentPage();
+  /* re-render modal if it's showing a graph from this N */
+  if(modalGraph && modalGraph.N === N) renderModal();
+}
+
+async function loadGraph(rec){
+  const key = rec.N+"-"+rec.id;
+  if(state.cache.has(key)) return state.cache.get(key);
+
+  const dec = decodeGraph6(rec.graph6);
+  const n = dec.n;
+
+  /* layout: await the N-level fetch (started by renderPage) */
+  const layoutData  = await getNLayout(rec.N);
+  const layoutEntry = layoutData?.[rec.id] ?? null;
+
+  /* MI: use cached result if already fetched, otherwise don't block */
+  const miData  = nMICache.has(rec.N) ? await nMICache.get(rec.N) : null;
+  const miEntry = miData?.[rec.id];
+
+  const layout = Array.isArray(layoutEntry) ? layoutEntry : circularLayout(n);
+  const mi     = Array.isArray(miEntry)     ? buildMIMap(n, miEntry) : null;
+
+  const deg = new Array(n).fill(0);
+  for(const [a,b] of dec.edges){ deg[a]++; deg[b]++; }
+
+  const data = {
+    N:rec.N, id:rec.id, graph6:rec.graph6, n,
+    originalEdges: dec.edges,
+    completeEdges: completeEdges(n),
+    layout, mi,
+    has:{ layout: Array.isArray(layoutEntry), mi: !!mi },
+    deg
+  };
+  state.cache.set(key, data);
+  return data;
+}
+
+/* ---------- drawing ---------- */
+function project(pts){
+  const xs = pts.map(p=>p[0]), ys = pts.map(p=>p[1]);
+  let minX=Math.min(...xs), maxX=Math.max(...xs);
+  let minY=Math.min(...ys), maxY=Math.max(...ys);
+  const w=(maxX-minX)||1, h=(maxY-minY)||1;
+  const pad=130;
+  const s=Math.min((V-2*pad)/w,(V-2*pad)/h);
+  const ox=(V-s*w)/2, oy=(V-s*h)/2;
+  return pts.map(([x,y]) => [ ox+(x-minX)*s, V-(oy+(y-minY)*s) ]); // flip y
+}
+function el(tag,attrs){
+  const e = document.createElementNS(NS,tag);
+  for(const k in attrs) e.setAttribute(k,attrs[k]);
+  return e;
+}
+function lerp(a,b,t){ return a+(b-a)*t; }
+function mix(c1,c2,t){
+  return "rgb("+Math.round(lerp(c1[0],c2[0],t))+","
+    +Math.round(lerp(c1[1],c2[1],t))+","
+    +Math.round(lerp(c1[2],c2[2],t))+")";
+}
+
+/* build an <svg> element for a graph in a given mode.
+   opts: { interactive:bool, showValues:bool } */
+function renderGraph(g, mode, opts){
+  opts = opts || {};
+  const pos = project(g.layout);
+  const svg = el("svg",{ viewBox:"0 0 "+V+" "+V });
+  const isWeighted = mode !== "original";
+  /* complete = all pairs + MI;  weighted = original edges + MI */
+  const edges = mode === "complete" ? g.completeEdges : g.originalEdges;
+
+  const haveMI = isWeighted && g.mi && g.mi.size>0;
+  let wmin=0, wmax=1;
+  if(haveMI){
+    /* always normalise over ALL pairs (complete graph), not just the drawn edges,
+       so "Complete · MI" and "Original · MI" use the same scale for each graph */
+    const vals = [...g.mi.values()].filter(v=>v>1e-10);
+    if(vals.length){ wmin=Math.min(...vals); wmax=Math.max(...vals); }
+  }
+  const wSpread = wmax-wmin;
+  const wUniform = wSpread < 1e-9;
+
+  const eg = el("g",{}); svg.appendChild(eg);
+
+  for(const [a,b] of edges){
+    if(!pos[a]||!pos[b]) continue;
+    const [x1,y1]=pos[a], [x2,y2]=pos[b];
+    let stroke, width;
+
+    if(isWeighted){
+      const w = g.mi ? g.mi.get(ekey(a,b)) : null;
+      if(haveMI && w!=null && w<=1e-10) continue;   // zero MI → don't draw
+      const t = (haveMI && w!=null && !wUniform) ? (w-wmin)/wSpread : 0.5;
+      stroke = haveMI ? mix(COL.miLow,COL.miHigh,t) : COL.edgeComplete;
+      width  = haveMI ? lerp(1.5,42,t) : 4;
+    } else {
+      stroke = COL.edgeOriginal; width = 8;
+    }
+
+    const line = el("line",{
+      x1,y1,x2,y2, stroke,
+      "stroke-width":width, "stroke-linecap":"round",
+      "stroke-opacity": isWeighted ? 0.92 : 1,
+      "stroke-dasharray": (isWeighted && !haveMI) ? "2 12" : "none"
+    });
+    eg.appendChild(line);
+
+    if(isWeighted && haveMI){
+      const w = g.mi.get(ekey(a,b));
+      const title = document.createElementNS(NS,"title");
+      title.textContent = "("+a+", "+b+")  MI = "+(w!=null?w.toFixed(4):"--");
+      line.appendChild(title);
+
+      if(opts.interactive){
+        const hit = el("line",{
+          x1,y1,x2,y2, stroke:"transparent",
+          "stroke-width":Math.max(width,46), "stroke-linecap":"round"
+        });
+        hit.style.cursor="crosshair";
+        hit.addEventListener("mousemove",ev=>showTip(ev,
+          "("+a+","+b+")  MI "+(w!=null?w.toFixed(4):"--")));
+        hit.addEventListener("mouseleave",hideTip);
+        eg.appendChild(hit);
+      }
+    }
+  }
+
+  /* nodes */
+  const ng = el("g",{});
+  const r = g.n>7 ? 30 : 34;
+  for(let i=0;i<g.n;i++){
+    const [x,y]=pos[i];
+    const c = el("circle",{ cx:x, cy:y, r, fill:COL.node });
+    if(opts.interactive){
+      const t=document.createElementNS(NS,"title");
+      t.textContent = "node "+i+"  ·  degree "+g.deg[i];
+      c.appendChild(t);
+    }
+    ng.appendChild(c);
+    const lab = el("text",{
+      x, y, "text-anchor":"middle", "dominant-baseline":"central",
+      "font-family":"'Spline Sans Mono',monospace",
+      "font-size":(g.n>7?32:36), "font-weight":600, fill:COL.nodeLabel
+    });
+    lab.textContent = i;
+    ng.appendChild(lab);
+  }
+  svg.appendChild(ng);
+  return svg;
+}
+
+/* ---------- gallery ---------- */
+function buildNPills(){
+  const wrap = document.getElementById("nPills");
+  wrap.innerHTML="";
+  [...state.byN.keys()].sort((a,b)=>a-b).forEach(N=>{
+    const b = document.createElement("button");
+    b.className="pill mono";
+    b.innerHTML = "N = "+N+'<span class="n-count">'+state.byN.get(N).length+"</span>";
+    b.setAttribute("aria-pressed", N===state.N ? "true":"false");
+    b.addEventListener("click",()=>selectN(N));
+    wrap.appendChild(b);
+  });
+}
+
+function selectN(N){
+  state.N = N;
+  state.page = 0;
+  buildNPills();
+  updateGallery();
+}
+
+const MLABEL = {original:"original structure", complete:"complete graph · MI", weighted:"original edges · MI"};
+
+function updateGallery(){
+  const recs = state.byN.get(state.N) || [];
+  const total = recs.length;
+  const pages = Math.max(1, Math.ceil(total / state.pageSize));
+
+  document.getElementById("galleryTitle").textContent =
+    total.toLocaleString()+" graph"+(total!==1?"s":"")+" on "+state.N+" nodes";
+  document.getElementById("galleryCount").textContent = "viewing "+MLABEL[state.mode];
+
+  /* pagination bar */
+  const bar = document.getElementById("pageBar");
+  if(total > state.pageSize){
+    bar.style.display = "flex";
+    document.getElementById("pagePrev").disabled = state.page === 0;
+    document.getElementById("pageNext").disabled = state.page >= pages-1;
+    document.getElementById("pageIndicator").textContent =
+      (state.page+1).toLocaleString()+" / "+pages.toLocaleString();
+    document.getElementById("jumpInput").max = total-1;
+  } else {
+    bar.style.display = "none";
+  }
+
+  renderPage(recs);
+}
+
+function renderPage(recs){
+  /* kick off N-level fetches before building cards */
+  getNLayout(state.N);
+  if(state.mode !== "original") getNMI(state.N);
+
+  const start = state.page * state.pageSize;
+  const pageRecs = recs.slice(start, start + state.pageSize);
+  const grid = document.getElementById("grid");
+  grid.innerHTML = "";
+  pageRecs.forEach((rec, i)=>{
+    const card = document.createElement("button");
+    card.className = "card";
+    card.style.animationDelay = (i*30)+"ms";
+    card.innerHTML =
+      '<div class="card-figure"><div class="spinner"></div></div>'+
+      '<div class="card-meta"><span class="card-id">'+rec.id+'</span></div>';
+    card.addEventListener("click", ()=>openModal(rec));
+    grid.appendChild(card);
+    loadGraph(rec).then(g=>fillCard(card,g))
+      .catch(()=>{
+        card.querySelector(".card-figure").innerHTML =
+          '<span class="mono" style="font-size:10px;color:var(--ink-soft)">no data</span>';
+      });
+  });
+}
+
+function fillCard(card, g){
+  const fig = card.querySelector(".card-figure");
+  fig.innerHTML="";
+  fig.appendChild(renderGraph(g, state.mode, {}));
+
+  const old = card.querySelector(".badge");
+  if(old) old.remove();
+  if(state.mode!=="original" && nMIDone.has(g.N) && !g.has.mi){
+    const bd = document.createElement("span");
+    bd.className="badge"; bd.textContent="no MI";
+    card.appendChild(bd);
+  }
+}
+
+function rerenderCurrentPage(){
+  const recs = state.byN.get(state.N) || [];
+  const start = state.page * state.pageSize;
+  document.querySelectorAll(".card").forEach((card, i)=>{
+    const rec = recs[start + i];
+    if(!rec) return;
+    const g = state.cache.get(rec.N+"-"+rec.id);
+    if(g) fillCard(card, g);
+  });
+}
+
+function setMode(mode){
+  state.mode = mode;
+  document.querySelectorAll("#modeSeg button").forEach(b=>
+    b.setAttribute("aria-pressed", b.dataset.mode===mode ? "true":"false"));
+  document.getElementById("galleryCount").textContent = "viewing "+MLABEL[mode];
+  if(mode !== "original") getNMI(state.N);   // lazy-fetch; applyMIToCache re-renders
+  rerenderCurrentPage();
+}
+
+/* ---------- modal ---------- */
+let modalGraph=null, modalMode="original";
+
+function openModal(rec){
+  document.getElementById("modalStage").innerHTML='<div class="spinner"></div>';
+  document.getElementById("modalInfo").innerHTML="";
+  document.getElementById("modalBack").classList.add("open");
+  document.body.style.overflow="hidden";
+  modalMode = state.mode;
+  /* load layout first, then MI if needed; both are N-level fetches */
+  const fetches = [loadGraph(rec)];
+  if(modalMode !== "original") fetches.push(getNMI(rec.N));
+  Promise.all(fetches).then(([g])=>{
+    modalGraph=g;
+    document.querySelectorAll("#modalSeg button").forEach(b=>
+      b.setAttribute("aria-pressed", b.dataset.mode===modalMode ? "true":"false"));
+    renderModal();
+  });
+}
+function closeModal(){
+  document.getElementById("modalBack").classList.remove("open");
+  document.body.style.overflow="";
+  hideTip();
+}
+
+function renderModal(){
+  const g = modalGraph;
+  if(!g) return;
+  const stage = document.getElementById("modalStage");
+  stage.innerHTML="";
+  stage.appendChild(renderGraph(g, modalMode, {interactive:true}));
+
+  /* weighted-only controls */
+  const isW = modalMode==="complete" || modalMode==="weighted";
+  const legend = document.getElementById("legend");
+  legend.classList.toggle("show", isW && g.has.mi);
+  if(isW && g.has.mi){
+    const vals=[...g.mi.values()].filter(v=>v>1e-10);
+    document.getElementById("legMin").textContent=vals.length?Math.min(...vals).toFixed(4):"0";
+    document.getElementById("legMax").textContent=vals.length?Math.max(...vals).toFixed(4):"—";
+  }
+
+  /* info panel */
+  let miBlock="";
+  if(isW && g.has.mi){
+    const vals=[...g.mi.values()];
+    const mean=vals.reduce((s,v)=>s+v,0)/vals.length;
+    const sd=Math.sqrt(vals.reduce((s,v)=>s+(v-mean)**2,0)/vals.length);
+    miBlock =
+      '<div><dt>MI mean</dt><dd>'+mean.toFixed(4)+'</dd></div>'+
+      '<div><dt>MI std</dt><dd>'+sd.toFixed(4)+'</dd></div>';
+  }
+  document.getElementById("modalInfo").innerHTML =
+    '<div><div class="sub">Graph atlas entry</div>'+
+      '<h3>N'+g.N+' &middot; id '+g.id+'</h3></div>'+
+    (miBlock ? '<dl class="specs">'+miBlock+'</dl>' : '')+
+    (isW && !g.has.mi
+      ? '<div class="mi-missing">mi_N'+g.N+'.json not found or data missing for this graph &mdash; '+
+        'weighted links shown dashed/uniform.</div>'
+      : '')+
+    '<div><div class="legend-title" style="margin-bottom:5px;">graph6 code</div>'+
+      '<div class="g6" id="g6copy" title="Click to copy">'+
+        '<span id="g6text">'+g.graph6+'</span>'+
+        '<span class="g6-copy" id="g6hint">copy</span>'+
+      '</div></div>';
+  document.getElementById("g6copy").addEventListener("click",()=>{
+    navigator.clipboard.writeText(g.graph6).then(()=>{
+      const el=document.getElementById("g6copy");
+      const hint=document.getElementById("g6hint");
+      el.classList.add("copied"); hint.textContent="copied!";
+      setTimeout(()=>{ el.classList.remove("copied"); hint.textContent="copy"; },1500);
+    });
+  });
+}
+
+/* ---------- tooltip ---------- */
+const tip=document.getElementById("tooltip");
+function showTip(ev,text){
+  tip.textContent=text; tip.style.display="block";
+  tip.style.left=ev.clientX+"px"; tip.style.top=ev.clientY+"px";
+}
+function hideTip(){ tip.style.display="none"; }
+
+/* ---------- wiring ---------- */
+function jumpToId(){
+  const id = parseInt(document.getElementById("jumpInput").value, 10);
+  if(isNaN(id) || id < 0) return;
+  const recs = state.byN.get(state.N) || [];
+  const idx = recs.findIndex(r => r.id === id);
+  if(idx < 0) return;
+  state.page = Math.floor(idx / state.pageSize);
+  updateGallery();
+  document.getElementById("grid").scrollIntoView({behavior:"smooth", block:"start"});
+}
+
+document.querySelectorAll("#modeSeg button").forEach(b=>
+  b.addEventListener("click",()=>setMode(b.dataset.mode)));
+document.getElementById("pagePrev").addEventListener("click",()=>{
+  if(state.page > 0){ state.page--; updateGallery(); document.getElementById("grid").scrollIntoView({behavior:"smooth",block:"start"}); }
+});
+document.getElementById("pageNext").addEventListener("click",()=>{
+  const total = (state.byN.get(state.N)||[]).length;
+  const pages = Math.ceil(total / state.pageSize);
+  if(state.page < pages-1){ state.page++; updateGallery(); document.getElementById("grid").scrollIntoView({behavior:"smooth",block:"start"}); }
+});
+document.getElementById("pageSizeSelect").addEventListener("change", e=>{
+  state.pageSize = parseInt(e.target.value, 10);
+  state.page = 0;
+  updateGallery();
+});
+document.getElementById("jumpBtn").addEventListener("click", jumpToId);
+document.getElementById("jumpInput").addEventListener("keydown", e=>{ if(e.key==="Enter") jumpToId(); });
+document.querySelectorAll("#modalSeg button").forEach(b=>
+  b.addEventListener("click",()=>{
+    modalMode=b.dataset.mode;
+    document.querySelectorAll("#modalSeg button").forEach(x=>
+      x.setAttribute("aria-pressed", x===b ? "true":"false"));
+    renderModal();
+  }));
+document.getElementById("modalClose").addEventListener("click",closeModal);
+document.getElementById("modalBack").addEventListener("click",e=>{
+  if(e.target.id==="modalBack") closeModal();
+});
+document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeModal(); });
+
+/* ---------- boot ---------- */
+(async function init(){
+  try{
+    const res = await fetch(DATA_DIR+"/zoo.csv");
+    if(!res.ok) throw new Error(res.status);
+    state.rows = parseCSV(await res.text());
+    for(const r of state.rows){
+      if(!state.byN.has(r.N)) state.byN.set(r.N,[]);
+      state.byN.get(r.N).push(r);
+    }
+    for(const list of state.byN.values()) list.sort((a,b)=>a.id-b.id);
+    if(state.byN.size===0) throw new Error("empty");
+    selectN([...state.byN.keys()].sort((a,b)=>a-b)[0]);
+  }catch(err){
+    document.getElementById("galleryTitle").textContent="Could not load the catalogue";
+    document.getElementById("grid").innerHTML =
+      '<div class="notice">Could not read <strong>'+DATA_DIR+'/zoo.csv</strong>.<br><br>'+
+      (location.protocol==="file:"
+        ? "Browsers block file access from <strong>file://</strong> pages.<br>"+
+          "Run a local server &mdash; e.g. <strong>python3 -m http.server</strong> &mdash;<br>"+
+          "or publish the folder with GitHub&nbsp;Pages."
+        : "Check that the <strong>data/</strong> folder is present next to index.html.")+
+      '</div>';
+  }
+})();
+</script>
+</body>
+</html>
