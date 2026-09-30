@@ -5,12 +5,36 @@ import { showTip, hideTip } from "./ui/tooltip.js";
 
 const NS = "http://www.w3.org/2000/svg";
 export const V = 1000;            // internal SVG coordinate space
-export const COL = {
-  edgeOriginal:"#33302b", edgeComplete:"#b9ad97",
-  node:"#272320", nodeLabel:"#f5f1e6", nodeLabelDark:"#272320",
-  edgeLow:[196,214,207], edgeHigh:[14,82,75],     // pair layers
-  nodeLow:[240,225,198], nodeHigh:[160,88,24]     // node layers
+
+/* Graph palette from the --g-* CSS tokens (css/zoo.css), as [r,g,b].
+   Cached; call resetPalette() when the theme changes.                  */
+let pal = null;
+const TOKENS = {
+  edge:"--g-edge", edgeComplete:"--g-edge-complete", node:"--g-node",
+  labelLight:"--g-label-light", labelDark:"--g-label-dark",
+  edgeLow:"--g-edge-low", edgeHigh:"--g-edge-high",     // pair layers
+  nodeLow:"--g-node-low", nodeHigh:"--g-node-high"      // node layers
 };
+function parseColor(str){
+  str = str.trim();
+  if(str[0] === "#"){
+    const h = str.length === 4 ? str.slice(1).split("").map(c=>c+c).join("") : str.slice(1);
+    return [0,2,4].map(i=>parseInt(h.slice(i,i+2),16));
+  }
+  return (str.match(/[\d.]+/g) || [0,0,0]).slice(0,3).map(Number);
+}
+export function palette(){
+  if(!pal){
+    const cs = getComputedStyle(document.documentElement);
+    pal = {};
+    for(const k in TOKENS) pal[k] = parseColor(cs.getPropertyValue(TOKENS[k]) || "#888");
+  }
+  return pal;
+}
+export function resetPalette(){ pal = null; }
+const rgb = c => "rgb("+c.join(",")+")";
+/* relative luminance, for picking a readable node label */
+const luma = c => (0.2126*c[0] + 0.7152*c[1] + 0.0722*c[2]) / 255;
 
 function project(pts){
   const xs = pts.map(p=>p[0]), ys = pts.map(p=>p[1]);
@@ -28,11 +52,8 @@ function el(tag,attrs){
   return e;
 }
 function lerp(a,b,t){ return a+(b-a)*t; }
-export function mix(c1,c2,t){
-  return "rgb("+Math.round(lerp(c1[0],c2[0],t))+","
-    +Math.round(lerp(c1[1],c2[1],t))+","
-    +Math.round(lerp(c1[2],c2[2],t))+")";
-}
+function mixRGB(c1,c2,t){ return [0,1,2].map(i=>Math.round(lerp(c1[i],c2[i],t))); }
+export function mix(c1,c2,t){ return rgb(mixRGB(c1,c2,t)); }
 function title(parent, text){
   const t = document.createElementNS(NS,"title");
   t.textContent = text;
@@ -81,6 +102,7 @@ function normaliser({min, max}){
    opts: { interactive:bool } */
 export function renderGraph(g, view, opts){
   opts = opts || {};
+  const P = palette();
   const pos = project(g.layout);
   const svg = el("svg",{ viewBox:"0 0 "+V+" "+V });
   const edges = view.edges === "complete" ? g.completeEdges : g.originalEdges;
@@ -103,12 +125,12 @@ export function renderGraph(g, view, opts){
     if(haveW){
       if(w<=zero) continue;                       // zero weight → don't draw
       const t = tEdge(w);
-      stroke = mix(COL.edgeLow,COL.edgeHigh,t);
+      stroke = mix(P.edgeLow,P.edgeHigh,t);
       width  = lerp(1.5,42,t);
     } else if(weighted){
-      stroke = COL.edgeComplete; width = 4;       // layer pending/missing, or unweighted K_N
+      stroke = rgb(P.edgeComplete); width = 4;       // layer pending/missing, or unweighted K_N
     } else {
-      stroke = COL.edgeOriginal; width = 8;
+      stroke = rgb(P.edge); width = 8;
     }
 
     const line = el("line",{
@@ -145,19 +167,18 @@ export function renderGraph(g, view, opts){
   const r = g.n>7 ? 30 : 34;
   for(let i=0;i<g.n;i++){
     const [x,y]=pos[i];
-    const t = haveN ? tNode(NL.values[i]) : null;
-    const c = el("circle",{ cx:x, cy:y, r,
-      fill: haveN ? mix(COL.nodeLow,COL.nodeHigh,t) : COL.node,
-      stroke: haveN ? COL.node : "none", "stroke-width": 4 });
+    const fill = haveN ? mixRGB(P.nodeLow,P.nodeHigh,tNode(NL.values[i])) : P.node;
+    const c = el("circle",{ cx:x, cy:y, r, fill: rgb(fill),
+      stroke: haveN ? rgb(P.node) : "none", "stroke-width": 4 });
     if(opts.interactive){
       title(c, "node "+i+"  ·  degree "+g.deg[i]+(haveN ? "  ·  "+nshort+" = "+NL.values[i].toFixed(4) : ""));
     }
     ng.appendChild(c);
     const lab = el("text",{
       x, y, "text-anchor":"middle", "dominant-baseline":"central",
-      "font-family":"'Spline Sans Mono',monospace",
+      "font-family":"'Spline Sans Mono',ui-monospace,Menlo,Consolas,monospace",
       "font-size":(g.n>7?32:36), "font-weight":600,
-      fill: haveN && t < 0.55 ? COL.nodeLabelDark : COL.nodeLabel
+      fill: rgb(luma(fill) > 0.5 ? P.labelDark : P.labelLight)
     });
     lab.textContent = i;
     ng.appendChild(lab);

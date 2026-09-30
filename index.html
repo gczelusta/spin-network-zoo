@@ -12,6 +12,7 @@
 <body>
 
 <header>
+  <button class="theme-btn" id="themeBtn" title="Switch colour theme">theme: auto</button>
   <div class="kicker">A browsable zoo of spin networks</div>
   <h1>Spin Network <em>Zoo</em></h1>
   <p class="tagline">
@@ -67,7 +68,7 @@
 </footer>
 
 <div class="modal-back" id="modalBack">
-  <div class="modal" id="modal">
+  <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
     <button class="modal-close" id="modalClose" aria-label="Close">&times;</button>
     <div class="modal-fig">
       <div class="modal-controls" id="modalControls"></div>

@@ -1,5 +1,5 @@
 /* Gallery: N pills, view controls, paginated card grid */
-import { state, sameView } from "../state.js";
+import { state, sameView, stateChanged } from "../state.js";
 import { nValues, graphCount, loadGraph, layerValues, layerMeta } from "../data.js";
 import { renderGraph } from "../render.js";
 import { buildViewControls, describeView } from "./controls.js";
@@ -22,6 +22,15 @@ function buildNPills(){
 
 export function buildControls(){
   buildViewControls($("viewControls"), state.view, setView);
+}
+
+/* apply a full gallery state at once (from a permalink) */
+export function restore({ N, page, pageSize, view }){
+  Object.assign(state, { N, page, pageSize, view: { ...view } });
+  $("pageSizeSelect").value = String(pageSize);
+  buildNPills();
+  buildControls();
+  updateGallery();
 }
 
 export function selectN(N){
@@ -56,6 +65,7 @@ export function updateGallery(){
   }
 
   renderPage();
+  stateChanged();
 }
 
 function renderPage(){
@@ -73,7 +83,7 @@ function renderPage(){
     card.innerHTML =
       '<div class="card-figure"><div class="spinner"></div></div>'+
       '<div class="card-meta"><span class="card-id">'+id+'</span></div>';
-    card.addEventListener("click", ()=>openModal(N, id, state.view));
+    card.addEventListener("click", ()=>openModal(id, state.view));
     grid.appendChild(card);
     loadGraph(N, id).then(g=>fillCard(card,g))
       .catch(()=>{
@@ -125,6 +135,14 @@ export function setView(view){
   buildControls();
   $("galleryCount").textContent = "viewing "+describeView(view);
   rerenderCurrentPage();
+  stateChanged();
+}
+
+/* show the page containing id (e.g. after stepping through graphs in the modal) */
+export function revealId(id){
+  const p = Math.floor(id / state.pageSize);
+  if(p !== state.page){ state.page = p; updateGallery(); }
+  return document.querySelector('#grid .card[data-id="'+id+'"]');
 }
 
 function scrollToGrid(){ $("grid").scrollIntoView({behavior:"smooth", block:"start"}); }

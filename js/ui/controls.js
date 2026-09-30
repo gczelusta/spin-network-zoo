@@ -15,6 +15,9 @@ function seg(label, key, options, view){
 export function buildViewControls(root, view, onChange){
   const pair = layerNames("pair"), node = layerNames("node");
   const name = l => layerMeta(l).short || layerMeta(l).label;
+  /* rebuilding drops focus — remember which button had it */
+  const a = document.activeElement;
+  const had = a && root.contains(a) ? [a.parentElement.dataset.key, a.dataset.value] : null;
   root.innerHTML =
     seg("Edges", "edges", [["original","Original"],["complete","Complete"]], view)+
     (pair.length ? seg("Edge weight", "edge", [[null,"None"], ...pair.map(l=>[l, name(l)])], view) : "")+
@@ -26,6 +29,7 @@ export function buildViewControls(root, view, onChange){
       onChange(v);
     }));
   });
+  if(had) root.querySelector('.seg[data-key="'+had[0]+'"] button[data-value="'+had[1]+'"]')?.focus();
 }
 
 /* short human description of a view, e.g. "complete graph · MI" */

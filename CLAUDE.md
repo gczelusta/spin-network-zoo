@@ -39,8 +39,11 @@ uv run tools/pack.py --check    # verify data/ against raw/ on sampled ids
   - When a layer shard arrives, `onShardLoaded` fires and `main.js` tells the gallery and modal to redraw.
 - `state.view = {edges, edge, node, scale}` fully describes a drawing. `render.js#renderGraph(g, view)` is the single renderer, used both for cards and for the modal.
   - Per-graph scaling normalises over all significant values, including pairs that aren't drawn as edges, so the original-edge and complete views of a graph share one scale. `scale: "n"` uses the manifest's range for that N instead. `scale: "all"` uses the range over every N, so it shifts whenever a larger N adds more extreme values.
-- `ui/controls.js` builds the view controls from the manifest, for both the gallery bar and the modal. The modal keeps its own view, independent of the gallery.
+- `ui/controls.js` builds the view controls from the manifest, for both the gallery bar and the modal. The modal keeps its own view in `state.modal = {id, view}`, independent of the gallery.
+- **Permalinks:** after mutating `state`, modules call `stateChanged()`, and `main.js` rewrites the URL hash with `history.replaceState`. `js/url.js` holds the pure `formatHash`/`readHash` functions, which are unit-tested. When a graph is open, the hash carries the modal's view and `g=<id>`. On load or `hashchange`, `readHash` validates the hash against the manifest and `gallery.restore` applies it.
+- **Theme:** colours are CSS tokens in `css/zoo.css`, with a dark set under `prefers-color-scheme` and `[data-theme]`. The graph colours are the `--g-*` tokens. `render.js#palette()` reads them as literal RGB, so exported SVGs are standalone, and caches them. Call `resetPalette()` and redraw when the theme changes.
+- `export.js` builds the SVG, PNG and JSON downloads from `renderGraph`.
 
 ## Roadmap
 
-The plan is at `~/.claude/plans/this-project-aims-to-whimsical-blanket.md`. Phases 0–2 are done: the module split, the sharded format with the packer, and generic layers. Phase 3 is next: permalinks in the URL hash, SVG/PNG/JSON export, dark mode, and keyboard navigation.
+The plan is at `~/.claude/plans/this-project-aims-to-whimsical-blanket.md`. Phases 0–3 are done: the module split, the sharded format with the packer, generic layers, and permalinks/export/dark mode/keyboard navigation. The ideas listed as "Later" are next: filtering and sorting by graph-level layers, ensemble plots, and side-by-side comparison.
