@@ -1,0 +1,39 @@
+cff-version: 1.2.0
+message: "If you use this dataset or viewer, please cite it as below."
+type: dataset
+title: "Spin Network Zoo"
+abstract: >-
+  Precomputed observables (starting with pairwise mutual information) of spin
+  networks on every 4-regular simple graph with 5 to 15 nodes, with an
+  interactive browser.
+authors:
+  - family-names: Czelusta
+    given-names: Grzegorz
+    affiliation: Jagiellonian University
+    # orcid: "https://orcid.org/0000-0000-0000-0000"
+repository-code: "https://github.com/gczelusta/spin-network-zoo"
+url: "https://gczelusta.github.io/spin-network-zoo/"
+license:
+  - MIT        # code
+  - CC-BY-4.0  # data in data/
+keywords:
+  - spin networks
+  - mutual information
+  - regular graphs
+
+# Once a Zenodo release exists, add its concept DOI (it resolves to the latest version):
+# doi: 10.5281/zenodo.XXXXXXX
+# version: "1.0.0"
+# date-released: "YYYY-MM-DD"
+
+# Once the paper is out, add it here — GitHub's "Cite this repository" will then
+# point readers to the paper instead of this dataset:
+# preferred-citation:
+#   type: article
+#   authors:
+#     - family-names: Czelusta
+#       given-names: Grzegorz
+#   title: "…"
+#   journal: "…"
+#   year: 2026
+#   doi: "10.xxxx/…"

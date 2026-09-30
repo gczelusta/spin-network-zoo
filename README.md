@@ -112,6 +112,17 @@ npm test    # unit tests (node --test, no dependencies)
   - `ui/`: the gallery, the detail view and the controls
 - `tools/pack.py` is the data packer.
 
----
+## Citation
+
+If you use the data or the viewer in your work, please cite it. The
+repository's [`CITATION.cff`](CITATION.cff) has the details, and GitHub's
+"Cite this repository" button formats it for you. A Zenodo DOI and an
+accompanying publication will be added once available.
+
+## License
 
 © 2026 Grzegorz Czelusta
+
+- **Code** (`index.html`, `css/`, `js/`, `tools/`): [MIT](LICENSE)
+- **Data** (`data/`): [CC BY 4.0](data/LICENSE). You're free to share and
+  adapt it, including commercially, as long as you give credit.
