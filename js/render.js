@@ -1,15 +1,16 @@
-/* SVG rendering of a graph object */
+/* SVG rendering of a graph object under a view (see state.view) */
 import { pairIndex } from "./graph6.js";
+import { layerValues, layerMeta, layerRange, layerRangeAll } from "./data.js";
 import { showTip, hideTip } from "./ui/tooltip.js";
 
 const NS = "http://www.w3.org/2000/svg";
 export const V = 1000;            // internal SVG coordinate space
-const COL = {
+export const COL = {
   edgeOriginal:"#33302b", edgeComplete:"#b9ad97",
-  node:"#272320", nodeLabel:"#f5f1e6",
-  miLow:[196,214,207], miHigh:[14,82,75]
+  node:"#272320", nodeLabel:"#f5f1e6", nodeLabelDark:"#272320",
+  edgeLow:[196,214,207], edgeHigh:[14,82,75],     // pair layers
+  nodeLow:[240,225,198], nodeHigh:[160,88,24]     // node layers
 };
-const ZERO = 1e-10;               // MI at or below this is treated as zero
 
 function project(pts){
   const xs = pts.map(p=>p[0]), ys = pts.map(p=>p[1]);
@@ -27,56 +28,85 @@ function el(tag,attrs){
   return e;
 }
 function lerp(a,b,t){ return a+(b-a)*t; }
-function mix(c1,c2,t){
+export function mix(c1,c2,t){
   return "rgb("+Math.round(lerp(c1[0],c2[0],t))+","
     +Math.round(lerp(c1[1],c2[1],t))+","
     +Math.round(lerp(c1[2],c2[2],t))+")";
 }
+function title(parent, text){
+  const t = document.createElementNS(NS,"title");
+  t.textContent = text;
+  parent.appendChild(t);
+}
 
-/* nonzero values of a flat per-pair array, with min/max */
-export function nonzeroStats(values){
-  const vals = values ? values.filter(v=>v>ZERO) : [];
+/* values above the layer's zero threshold (all values if it has none) */
+function significant(values, name){
+  const z = layerMeta(name).zeroThreshold;
+  return z == null ? [...values] : [...values].filter(v=>v>z);
+}
+
+export function layerStats(values, name){
+  const vals = [...values];
+  const sig = significant(values, name);
+  const mean = vals.reduce((s,v)=>s+v,0)/vals.length;
   return {
-    vals,
-    min: vals.length ? Math.min(...vals) : 0,
-    max: vals.length ? Math.max(...vals) : 1
+    mean,
+    std: Math.sqrt(vals.reduce((s,v)=>s+(v-mean)**2,0)/vals.length),
+    min: sig.length ? Math.min(...sig) : 0,
+    max: sig.length ? Math.max(...sig) : 0
   };
 }
 
-/* build an <svg> element for a graph in a given mode.
+/* colour/width normalisation range for a layer on a graph.
+   per graph: significant values of this graph — for pair layers over ALL pairs,
+   not just drawn edges, so original and complete edges share one scale.
+   n: the layer's range over every graph with this N.
+   all: the layer's range over every graph of every N.                      */
+export function layerScale(g, name, values, scale){
+  if(scale === "n" || scale === "all"){
+    const r = scale === "n" ? layerRange(g.N, name) : layerRangeAll(name);
+    if(r) return { min:r[0], max:r[1] };
+  }
+  const sig = significant(values, name);
+  return sig.length ? { min:Math.min(...sig), max:Math.max(...sig) } : { min:0, max:1 };
+}
+
+function normaliser({min, max}){
+  const spread = max-min;
+  if(spread < 1e-9) return () => 0.5;
+  return v => Math.min(1, Math.max(0, (v-min)/spread));
+}
+
+/* build an <svg> element for graph g drawn under view.
    opts: { interactive:bool } */
-export function renderGraph(g, mode, opts){
+export function renderGraph(g, view, opts){
   opts = opts || {};
   const pos = project(g.layout);
   const svg = el("svg",{ viewBox:"0 0 "+V+" "+V });
-  const isWeighted = mode !== "original";
-  /* complete = all pairs + MI;  weighted = original edges + MI */
-  const edges = mode === "complete" ? g.completeEdges : g.originalEdges;
+  const edges = view.edges === "complete" ? g.completeEdges : g.originalEdges;
 
-  const haveMI = isWeighted && g.mi && g.mi.length>0;
-  let wmin=0, wmax=1;
-  if(haveMI){
-    /* always normalise over ALL pairs (complete graph), not just the drawn edges,
-       so "Complete · MI" and "Original · MI" use the same scale for each graph */
-    const st = nonzeroStats(g.mi);
-    if(st.vals.length){ wmin=st.min; wmax=st.max; }
-  }
-  const wSpread = wmax-wmin;
-  const wUniform = wSpread < 1e-9;
+  const EL = view.edge ? layerValues(g, view.edge) : null;
+  const weighted = !!view.edge || view.edges === "complete";
+  const haveW = EL?.status === "ok";
+  const zero = view.edge ? layerMeta(view.edge).zeroThreshold ?? -Infinity : -Infinity;
+  const short = view.edge ? (layerMeta(view.edge).short || view.edge) : "";
+  const tEdge = haveW ? normaliser(layerScale(g, view.edge, EL.values, view.scale)) : null;
 
   const eg = el("g",{}); svg.appendChild(eg);
 
   for(const [a,b] of edges){
     if(!pos[a]||!pos[b]) continue;
     const [x1,y1]=pos[a], [x2,y2]=pos[b];
-    const w = haveMI ? g.mi[pairIndex(a,b)] : null;
+    const w = haveW ? EL.values[pairIndex(a,b)] : null;
     let stroke, width;
 
-    if(isWeighted){
-      if(haveMI && w!=null && w<=ZERO) continue;   // zero MI → don't draw
-      const t = (haveMI && w!=null && !wUniform) ? (w-wmin)/wSpread : 0.5;
-      stroke = haveMI ? mix(COL.miLow,COL.miHigh,t) : COL.edgeComplete;
-      width  = haveMI ? lerp(1.5,42,t) : 4;
+    if(haveW){
+      if(w<=zero) continue;                       // zero weight → don't draw
+      const t = tEdge(w);
+      stroke = mix(COL.edgeLow,COL.edgeHigh,t);
+      width  = lerp(1.5,42,t);
+    } else if(weighted){
+      stroke = COL.edgeComplete; width = 4;       // layer pending/missing, or unweighted K_N
     } else {
       stroke = COL.edgeOriginal; width = 8;
     }
@@ -84,17 +114,14 @@ export function renderGraph(g, mode, opts){
     const line = el("line",{
       x1,y1,x2,y2, stroke,
       "stroke-width":width, "stroke-linecap":"round",
-      "stroke-opacity": isWeighted ? 0.92 : 1,
-      "stroke-dasharray": (isWeighted && !haveMI) ? "2 12" : "none"
+      "stroke-opacity": weighted ? 0.92 : 1,
+      "stroke-dasharray": (view.edge && !haveW) ? "2 12" : "none"
     });
     eg.appendChild(line);
 
-    if(haveMI){
-      const label = "("+a+", "+b+")  MI = "+(w!=null?w.toFixed(4):"--");
-      const title = document.createElementNS(NS,"title");
-      title.textContent = label;
-      line.appendChild(title);
-
+    if(haveW){
+      const label = "("+a+", "+b+")  "+short+" = "+w.toFixed(4);
+      title(line, label);
       if(opts.interactive){
         const hit = el("line",{
           x1,y1,x2,y2, stroke:"transparent",
@@ -109,21 +136,28 @@ export function renderGraph(g, mode, opts){
   }
 
   /* nodes */
+  const NL = view.node ? layerValues(g, view.node) : null;
+  const haveN = NL?.status === "ok";
+  const tNode = haveN ? normaliser(layerScale(g, view.node, NL.values, view.scale)) : null;
+  const nshort = view.node ? (layerMeta(view.node).short || view.node) : "";
+
   const ng = el("g",{});
   const r = g.n>7 ? 30 : 34;
   for(let i=0;i<g.n;i++){
     const [x,y]=pos[i];
-    const c = el("circle",{ cx:x, cy:y, r, fill:COL.node });
+    const t = haveN ? tNode(NL.values[i]) : null;
+    const c = el("circle",{ cx:x, cy:y, r,
+      fill: haveN ? mix(COL.nodeLow,COL.nodeHigh,t) : COL.node,
+      stroke: haveN ? COL.node : "none", "stroke-width": 4 });
     if(opts.interactive){
-      const t=document.createElementNS(NS,"title");
-      t.textContent = "node "+i+"  ·  degree "+g.deg[i];
-      c.appendChild(t);
+      title(c, "node "+i+"  ·  degree "+g.deg[i]+(haveN ? "  ·  "+nshort+" = "+NL.values[i].toFixed(4) : ""));
     }
     ng.appendChild(c);
     const lab = el("text",{
       x, y, "text-anchor":"middle", "dominant-baseline":"central",
       "font-family":"'Spline Sans Mono',monospace",
-      "font-size":(g.n>7?32:36), "font-weight":600, fill:COL.nodeLabel
+      "font-size":(g.n>7?32:36), "font-weight":600,
+      fill: haveN && t < 0.55 ? COL.nodeLabelDark : COL.nodeLabel
     });
     lab.textContent = i;
     ng.appendChild(lab);

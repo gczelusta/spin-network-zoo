@@ -1,7 +1,8 @@
-/* Gallery: N pills, paginated card grid */
-import { state, MLABEL } from "../state.js";
-import { loadGraph, getNLayout, getNMI, miSettled, cachedGraph } from "../data.js";
+/* Gallery: N pills, view controls, paginated card grid */
+import { state, sameView } from "../state.js";
+import { nValues, graphCount, loadGraph, layerValues, layerMeta } from "../data.js";
 import { renderGraph } from "../render.js";
+import { buildViewControls, describeView } from "./controls.js";
 import { openModal } from "./modal.js";
 
 const $ = id => document.getElementById(id);
@@ -9,14 +10,18 @@ const $ = id => document.getElementById(id);
 function buildNPills(){
   const wrap = $("nPills");
   wrap.innerHTML="";
-  [...state.byN.keys()].sort((a,b)=>a-b).forEach(N=>{
+  nValues().forEach(N=>{
     const b = document.createElement("button");
     b.className="pill mono";
-    b.innerHTML = "N = "+N+'<span class="n-count">'+state.byN.get(N).length+"</span>";
+    b.innerHTML = "N = "+N+'<span class="n-count">'+graphCount(N).toLocaleString()+"</span>";
     b.setAttribute("aria-pressed", N===state.N ? "true":"false");
     b.addEventListener("click",()=>selectN(N));
     wrap.appendChild(b);
   });
+}
+
+export function buildControls(){
+  buildViewControls($("viewControls"), state.view, setView);
 }
 
 export function selectN(N){
@@ -27,18 +32,16 @@ export function selectN(N){
 }
 
 function pageCount(){
-  const total = (state.byN.get(state.N)||[]).length;
-  return Math.max(1, Math.ceil(total / state.pageSize));
+  return Math.max(1, Math.ceil(graphCount(state.N) / state.pageSize));
 }
 
 export function updateGallery(){
-  const recs = state.byN.get(state.N) || [];
-  const total = recs.length;
+  const total = graphCount(state.N);
   const pages = pageCount();
 
   $("galleryTitle").textContent =
     total.toLocaleString()+" graph"+(total!==1?"s":"")+" on "+state.N+" nodes";
-  $("galleryCount").textContent = "viewing "+MLABEL[state.mode];
+  $("galleryCount").textContent = "viewing "+describeView(state.view);
 
   const bar = $("pageBar");
   if(total > state.pageSize){
@@ -52,65 +55,75 @@ export function updateGallery(){
     bar.style.display = "none";
   }
 
-  renderPage(recs);
+  renderPage();
 }
 
-function renderPage(recs){
-  /* kick off N-level fetches before building cards */
-  getNLayout(state.N);
-  if(state.mode !== "original") getNMI(state.N);
-
+function renderPage(){
+  const N = state.N;
   const start = state.page * state.pageSize;
-  const pageRecs = recs.slice(start, start + state.pageSize);
+  const end = Math.min(graphCount(N), start + state.pageSize);
   const grid = $("grid");
   grid.innerHTML = "";
-  pageRecs.forEach((rec, i)=>{
+  for(let id=start; id<end; id++){
     const card = document.createElement("button");
     card.className = "card";
-    card.dataset.n = rec.N;
-    card.dataset.id = rec.id;
-    card.style.animationDelay = (i*30)+"ms";
+    card.dataset.n = N;
+    card.dataset.id = id;
+    card.style.animationDelay = ((id-start)*30)+"ms";
     card.innerHTML =
       '<div class="card-figure"><div class="spinner"></div></div>'+
-      '<div class="card-meta"><span class="card-id">'+rec.id+'</span></div>';
-    card.addEventListener("click", ()=>openModal(rec, state.mode));
+      '<div class="card-meta"><span class="card-id">'+id+'</span></div>';
+    card.addEventListener("click", ()=>openModal(N, id, state.view));
     grid.appendChild(card);
-    loadGraph(rec).then(g=>fillCard(card,g))
+    loadGraph(N, id).then(g=>fillCard(card,g))
       .catch(()=>{
         card.querySelector(".card-figure").innerHTML =
           '<span class="mono" style="font-size:10px;color:var(--ink-soft)">no data</span>';
       });
-  });
+  }
+}
+
+/* "no MI"-style badge text for layers the view needs but this graph lacks */
+function missingLayers(g, view){
+  return [view.edge, view.node].filter(l => {
+    if(!l) return false;
+    const s = layerValues(g, l).status;
+    return s === "missing" || s === "absent";
+  }).map(l => layerMeta(l).short || l);
 }
 
 function fillCard(card, g){
   if(!card.isConnected) return;   // page changed while loading
+  card.graph = g;
   const fig = card.querySelector(".card-figure");
   fig.innerHTML="";
-  fig.appendChild(renderGraph(g, state.mode, {}));
+  fig.appendChild(renderGraph(g, state.view, {}));
 
-  const old = card.querySelector(".badge");
-  if(old) old.remove();
-  if(state.mode!=="original" && miSettled(g.N) && !g.has.mi){
+  card.querySelector(".badge")?.remove();
+  const miss = missingLayers(g, state.view);
+  if(miss.length){
     const bd = document.createElement("span");
-    bd.className="badge"; bd.textContent="no MI";
+    bd.className="badge"; bd.textContent="no "+miss.join(", ");
     card.appendChild(bd);
   }
 }
 
 export function rerenderCurrentPage(){
   document.querySelectorAll("#grid .card").forEach(card=>{
-    const g = cachedGraph(+card.dataset.n, +card.dataset.id);
-    if(g) fillCard(card, g);
+    if(card.graph) fillCard(card, card.graph);
   });
 }
 
-export function setMode(mode){
-  state.mode = mode;
-  document.querySelectorAll("#modeSeg button").forEach(b=>
-    b.setAttribute("aria-pressed", b.dataset.mode===mode ? "true":"false"));
-  $("galleryCount").textContent = "viewing "+MLABEL[mode];
-  if(mode !== "original") getNMI(state.N);   // lazy-fetch; MI listener re-renders
+/* a layer shard for N arrived — redraw if the gallery is showing it */
+export function layerLoaded(N, layer){
+  if(state.N === N && (state.view.edge === layer || state.view.node === layer)) rerenderCurrentPage();
+}
+
+export function setView(view){
+  if(sameView(view, state.view)) return;
+  state.view = view;
+  buildControls();
+  $("galleryCount").textContent = "viewing "+describeView(view);
   rerenderCurrentPage();
 }
 
@@ -130,11 +143,8 @@ export function setPageSize(size){
 }
 
 export function jumpToId(id){
-  if(isNaN(id) || id < 0) return;
-  const recs = state.byN.get(state.N) || [];
-  const idx = recs.findIndex(r => r.id === id);
-  if(idx < 0) return;
-  state.page = Math.floor(idx / state.pageSize);
+  if(isNaN(id) || id < 0 || id >= graphCount(state.N)) return;
+  state.page = Math.floor(id / state.pageSize);
   updateGallery();
   scrollToGrid();
 }

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>The Graph Atlas</title>
+<title>Spin Network Zoo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Spectral:ital,wght@0,400;0,500;1,400&family=Spline+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
@@ -27,14 +27,7 @@
     <span class="ctrl-label">Nodes &mdash; N</span>
     <div class="pills" id="nPills"></div>
   </div>
-  <div class="ctrl-group">
-    <span class="ctrl-label">View mode</span>
-    <div class="seg" id="modeSeg">
-      <button data-mode="original" aria-pressed="true">Original</button>
-      <button data-mode="complete" aria-pressed="false">Complete · MI</button>
-      <button data-mode="weighted" aria-pressed="false">Original · MI</button>
-    </div>
-  </div>
+  <div class="view-controls" id="viewControls"></div>
 </nav>
 
 <main>
@@ -77,17 +70,9 @@
   <div class="modal" id="modal">
     <button class="modal-close" id="modalClose" aria-label="Close">&times;</button>
     <div class="modal-fig">
-      <div class="seg" id="modalSeg" style="align-self:flex-start;">
-        <button data-mode="original">Original</button>
-        <button data-mode="complete">Complete · MI</button>
-        <button data-mode="weighted">Original · MI</button>
-      </div>
+      <div class="modal-controls" id="modalControls"></div>
       <div class="stage" id="modalStage"></div>
-      <div class="legend" id="legend">
-        <span class="legend-title">Mutual information</span>
-        <div class="legend-bar"></div>
-        <div class="legend-scale"><span id="legMin"></span><span id="legMax"></span></div>
-      </div>
+      <div class="legends" id="legends"></div>
     </div>
     <div class="modal-info" id="modalInfo"></div>
   </div>

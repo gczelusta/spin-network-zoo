@@ -1,29 +1,28 @@
-/* Detail modal for a single graph */
-import { loadGraph, getNMI } from "../data.js";
-import { renderGraph, nonzeroStats } from "../render.js";
+/* Detail modal for a single graph, with its own view independent of the gallery */
+import { sameView } from "../state.js";
+import { loadGraph, layerNames, layerMeta, layerValues, layerReady, hasLayer } from "../data.js";
+import { renderGraph, layerScale, layerStats, mix, COL } from "../render.js";
+import { buildViewControls } from "./controls.js";
 import { hideTip } from "./tooltip.js";
 
 const $ = id => document.getElementById(id);
 
-let modalGraph = null, modalMode = "original", openToken = 0;
+let modalGraph = null, modalView = null, openToken = 0;
 
-export function currentModalGraph(){ return modalGraph; }
-
-export function openModal(rec, mode){
+export function openModal(N, id, view){
   const token = ++openToken;
   modalGraph = null;
+  modalView = { ...view };
   $("modalStage").innerHTML='<div class="spinner"></div>';
   $("modalInfo").innerHTML="";
-  $("legend").classList.remove("show");
+  $("legends").innerHTML="";
+  buildViewControls($("modalControls"), modalView, setModalView);
   $("modalBack").classList.add("open");
   document.body.style.overflow="hidden";
-  modalMode = mode;
-  const fetches = [loadGraph(rec)];
-  if(modalMode !== "original") fetches.push(getNMI(rec.N));
-  Promise.all(fetches).then(([g])=>{
+  /* the info panel lists every layer, so fetch all of them for this graph */
+  Promise.all([loadGraph(N, id), ...layerNames().map(l=>layerReady(N, id, l))]).then(([g])=>{
     if(token !== openToken) return;   // a newer open (or close) superseded this one
     modalGraph = g;
-    syncSeg();
     renderModal();
   });
 }
@@ -36,51 +35,64 @@ export function closeModal(){
   hideTip();
 }
 
-export function setModalMode(mode){
-  modalMode = mode;
-  syncSeg();
-  if(mode !== "original" && modalGraph) getNMI(modalGraph.N);
+function setModalView(view){
+  if(sameView(view, modalView)) return;
+  modalView = view;
+  buildViewControls($("modalControls"), modalView, setModalView);
   renderModal();
 }
 
-function syncSeg(){
-  document.querySelectorAll("#modalSeg button").forEach(b=>
-    b.setAttribute("aria-pressed", b.dataset.mode===modalMode ? "true":"false"));
+/* a layer shard arrived (e.g. after eviction) — redraw if it concerns the open graph */
+export function layerLoaded(N){
+  if(modalGraph && modalGraph.N === N) renderModal();
 }
+
+function legend(g, name, low, high){
+  const L = layerValues(g, name);
+  if(L.status !== "ok") return "";
+  const m = layerMeta(name), sc = layerScale(g, name, L.values, modalView.scale);
+  return '<div class="legend">'+
+    '<span class="legend-title">'+m.label+({n:" · scale over N = "+g.N, all:" · scale over all N"}[modalView.scale] ?? "")+'</span>'+
+    '<div class="legend-bar" style="background:linear-gradient(90deg,'+mix(low,high,0)+','+mix(low,high,1)+')"></div>'+
+    '<div class="legend-scale"><span>'+sc.min.toFixed(4)+'</span><span>'+sc.max.toFixed(4)+'</span></div>'+
+  '</div>';
+}
+
+function spec(label, value){ return '<div><dt>'+label+'</dt><dd>'+value+'</dd></div>'; }
 
 export function renderModal(){
   const g = modalGraph;
   if(!g) return;
   const stage = $("modalStage");
   stage.innerHTML="";
-  stage.appendChild(renderGraph(g, modalMode, {interactive:true}));
+  stage.appendChild(renderGraph(g, modalView, {interactive:true}));
 
-  const isW = modalMode !== "original";
-  const legend = $("legend");
-  legend.classList.toggle("show", isW && g.has.mi);
-  if(isW && g.has.mi){
-    const st = nonzeroStats(g.mi);
-    $("legMin").textContent = st.vals.length ? st.min.toFixed(4) : "0";
-    $("legMax").textContent = st.vals.length ? st.max.toFixed(4) : "—";
+  $("legends").innerHTML =
+    (modalView.edge ? legend(g, modalView.edge, COL.edgeLow, COL.edgeHigh) : "")+
+    (modalView.node ? legend(g, modalView.node, COL.nodeLow, COL.nodeHigh) : "");
+
+  /* stats for every layer this graph has */
+  let specs = "";
+  for(const l of layerNames()){
+    const L = layerValues(g, l);
+    if(L.status !== "ok") continue;
+    const m = layerMeta(l), short = m.short || l;
+    if(m.kind === "graph"){ specs += spec(m.label, L.values[0].toFixed(4)); continue; }
+    const st = layerStats(L.values, l);
+    specs += spec(short+" mean", st.mean.toFixed(4)) + spec(short+" std", st.std.toFixed(4));
   }
 
-  let miBlock="";
-  if(isW && g.has.mi){
-    const vals = g.mi;
-    const mean = vals.reduce((s,v)=>s+v,0)/vals.length;
-    const sd = Math.sqrt(vals.reduce((s,v)=>s+(v-mean)**2,0)/vals.length);
-    miBlock =
-      '<div><dt>MI mean</dt><dd>'+mean.toFixed(4)+'</dd></div>'+
-      '<div><dt>MI std</dt><dd>'+sd.toFixed(4)+'</dd></div>';
-  }
+  const missing = [modalView.edge, modalView.node].filter(l => l && layerValues(g, l).status !== "ok");
+  const notice = missing.map(l =>
+    '<div class="mi-missing">'+layerMeta(l).label+' '+
+    (hasLayer(g.N, l) ? "is missing for this graph" : "is not available for N = "+g.N)+
+    ' &mdash; shown '+(l===modalView.edge ? "dashed/uniform" : "uncoloured")+'.</div>').join("");
+
   $("modalInfo").innerHTML =
     '<div><div class="sub">Graph atlas entry</div>'+
       '<h3>N'+g.N+' &middot; id '+g.id+'</h3></div>'+
-    (miBlock ? '<dl class="specs">'+miBlock+'</dl>' : '')+
-    (isW && !g.has.mi
-      ? '<div class="mi-missing">mi_N'+g.N+'.json not found or data missing for this graph &mdash; '+
-        'weighted links shown dashed/uniform.</div>'
-      : '')+
+    (specs ? '<dl class="specs">'+specs+'</dl>' : '')+
+    notice+
     '<div><div class="legend-title" style="margin-bottom:5px;">graph6 code</div>'+
       '<div class="g6" id="g6copy" title="Click to copy">'+
         '<span id="g6text">'+g.graph6+'</span>'+
