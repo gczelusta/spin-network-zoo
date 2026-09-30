@@ -1,0 +1,9 @@
+{
+  "name": "spin-network-zoo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "serve": "python3 -m http.server",
+    "test": "node --test tests/"
+  }
+}
