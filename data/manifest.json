@@ -1,0 +1,135 @@
+{
+ "version": 1,
+ "shardSize": 4096,
+ "N": {
+  "5": {
+   "count": 1,
+   "layers": [
+    "layout",
+    "mi"
+   ],
+   "layoutScale": 1.0
+  },
+  "6": {
+   "count": 1,
+   "layers": [
+    "layout",
+    "mi"
+   ],
+   "layoutScale": 1.0
+  },
+  "7": {
+   "count": 2,
+   "layers": [
+    "layout",
+    "mi"
+   ],
+   "layoutScale": 1.0
+  },
+  "8": {
+   "count": 6,
+   "layers": [
+    "layout",
+    "mi"
+   ],
+   "layoutScale": 1.0
+  },
+  "9": {
+   "count": 16,
+   "layers": [
+    "layout",
+    "mi"
+   ],
+   "layoutScale": 1.0
+  },
+  "10": {
+   "count": 59,
+   "layers": [
+    "layout",
+    "mi"
+   ],
+   "layoutScale": 1.0
+  },
+  "11": {
+   "count": 265,
+   "layers": [
+    "layout",
+    "mi"
+   ],
+   "layoutScale": 1.0
+  },
+  "12": {
+   "count": 1544,
+   "layers": [
+    "layout",
+    "mi"
+   ],
+   "layoutScale": 1.0
+  },
+  "13": {
+   "count": 10778,
+   "layers": [
+    "layout",
+    "mi"
+   ],
+   "layoutScale": 1.0
+  },
+  "14": {
+   "count": 88168,
+   "layers": [
+    "layout"
+   ],
+   "layoutScale": 1.0
+  },
+  "15": {
+   "count": 805491,
+   "layers": []
+  }
+ },
+ "layers": {
+  "mi": {
+   "kind": "pair",
+   "label": "Mutual information",
+   "short": "MI",
+   "zeroThreshold": 1e-10,
+   "range": {
+    "5": [
+     0.12261293570338627,
+     0.12261293570338694
+    ],
+    "6": [
+     0.017388579498841317,
+     0.13762715786530677
+    ],
+    "7": [
+     0.0060461627691621445,
+     0.3790479689735968
+    ],
+    "8": [
+     0.0,
+     0.466490958797676
+    ],
+    "9": [
+     0.00024842678575276445,
+     0.4991828100186688
+    ],
+    "10": [
+     0.0,
+     0.7176750793754358
+    ],
+    "11": [
+     0.0,
+     0.8112781244591319
+    ],
+    "12": [
+     0.0,
+     1.0814635967629938
+    ],
+    "13": [
+     0.0,
+     1.448534455511981
+    ]
+   }
+  }
+ }
+}
